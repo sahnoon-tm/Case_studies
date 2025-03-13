@@ -1,0 +1,228 @@
+---
+title: "Crime_against_women"
+author: "Sahnoon"
+date: "2025-03-12"
+output: pdf_document
+---
+### Install packages and load data
+```{r}
+install.packages("tidyverse")
+library(tidyverse)
+df <- read_csv('CrimesOnWomenData.csv')
+```
+
+##### Explore through data
+```{r}
+View(df)
+```
+We have renamed every column for easy understanding for everyone
+```{r}
+df <- df %>%
+  rename(
+    "Kidnap And Assault" = K.A,
+    "Dowry Deaths" = DD,
+    "Assault against women" = AoW,
+    "Assault against modesty of women" = AoM,
+    "Domestic violence" = DV,
+    "Women Trafficking" = WT
+  )
+
+
+df <- df %>%
+  rename(
+    "Women_Assault" = `Assault against women`,
+    "Women_Modesty" = `Assault against modesty of women`
+  )
+
+```
+
+we noticed most of the state had repetition , so we have to deal with it
+
+```{r}
+df <- df %>%
+  mutate(State = str_to_title(str_trim(State))) 
+```
+
+for easy access we created a new column for total crime which will calculate the crime in deffrent category
+
+```{r}
+df$Total_crime <- rowSums(df[, c("Rape", "K&A", "DD", "AoW", "AoM", "DV", "WT")])
+```
+
+and we find the crime variation in each year for enitre inida
+
+```{r}
+crime_by_each_yr <- df %>% 
+  group_by(Year) %>% 
+  summarise(Total_Crime = sum(Total_crime, na.rm = TRUE))
+
+View(crime_by_each_yr)
+```
+
+We have to visualization the data we created
+```{r}
+library(ggplot2)
+
+ggplot(crime_by_each_yr, aes(x=Year, y=Total_Crime)) +
+  geom_line(color = "blue") +
+  geom_point(color = 'red') +
+  labs(title = "Total Crimes Against Women in India (2001-2021)",
+       x = "Year",
+       y = "Total crimes") +
+  theme_minimal()
+```
+
+
+here we can see the crime is significally increasing year by year which is need to be solved, since it increasing  we should look at what are the major crime is happeinng 
+
+```{r}
+between_2010_2015 <- df %>% 
+  filter(between(Year, 2010, 2015)) %>% 
+  group_by(Year) %>%
+  summarise(
+    Rape = sum(Rape, na.rm = TRUE),
+    `K&A `= sum(`K&A`, na.rm = TRUE),
+    DD = sum(DD, na.rm = TRUE),
+    AoW = sum(AoW, na.rm = TRUE),
+    AoM = sum(AoM, na.rm = TRUE),
+    DV = sum(DV, na.rm = TRUE),
+    WT = sum(WT, na.rm = TRUE)
+  )
+
+View(between_2010_2015)
+```
+
+and we will have to create viz here
+
+```{r}
+ggplot(df_long, aes(x = Year, y = Value, color = Category)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Trends Over the Years", x = "Year", y = "Value") +
+  theme_minimal()
+```
+
+here we clearly see the domestic violnce is most crime, we havent noticed it yet, and i also want to checkout that how the entire crime is partially effecting the graph
+
+```{r}
+total_crime_india <- df %>% 
+  summarise(
+    Rape = sum(Rape, na.rm = TRUE),
+    `Kidnap And Assault `= sum(`Kidnap And Assault`, na.rm = TRUE),
+    `Dowry Deaths` = sum(`Dowry Deaths`, na.rm = TRUE),
+    `Women_Assault` = sum(`Women_Assault`, na.rm = TRUE),
+    `Women_Modesty` = sum(`Women_Modesty`, na.rm = TRUE),
+    `Domestic violence` = sum(`Domestic violence`, na.rm = TRUE),
+    `Women Trafficking` = sum(`Women Trafficking`, na.rm = TRUE)
+  )
+
+# Transpose the data to make it easier to read
+total_crime_india <- t(total_crime_india)
+sort(total_crime_india, decreasing = TRUE)
+
+```
+
+
+and we see Domestic violence is most crime hrew whcih we never though much so we are looking the from where the most domestic crime happening in inida, lets take top ten states
+
+```{r}
+# Select Top 10 states
+top_10_states <- Domestic_violence_plot %>%
+  arrange(desc(`Domestic violence`)) %>%
+  head(10)
+
+# Create Bar Chart
+ggplot(top_10_states, aes(x = reorder(State, `Domestic violence`), y = `Domestic violence`)) +
+  geom_bar(stat = "identity", fill = "red") +
+  coord_flip() +
+  labs(title = "Top 10 States with Highest Domestic Violence Cases",
+       x = "State",
+       y = "Total Domestic Violence Cases") +
+  theme_minimal()
+
+```
+
+
+for an instace is education controll crime lets checkout, we take kerala and bihar for it
+
+```{r}
+kerala_bihar_crime <- df %>%
+  filter(State %in% c("Kerala", "Bihar")) %>%
+  group_by(State) %>%
+  summarise(Total_Crime = sum(Total_crime, na.rm = TRUE))
+
+print(kerala_bihar_crime)
+
+ggplot(kerala_bihar_crime, aes(x = State, y = Total_Crime, fill = State)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Total Crime in Kerala and Bihar (2001-2021)",
+       x = "State",
+       y = "Total Crime Count") +
+  theme_minimal()
+```
+
+Surprisingly result was shocking , but what more horrible is poplulation of bihar is almost 3 time greater than kerala, we even checked the crime ratio in both bihar and kerala
+
+kerala
+
+```{r}
+
+kerala_crime <- df %>% 
+  filter(State == "Kerala") %>% 
+  select(Year, Total_crime)
+
+View(kerala_crime)
+
+
+ggplot(kerala_crime, aes(x = Year, y = Total_crime)) +
+  geom_line(color = "red", size = 1) +
+  geom_point(color = "blue", size = 2) +
+  labs(title = "Crime Trend in Kerala (2001-2021)", 
+       x = "Year", 
+       y = "Total Crime") +
+  theme_minimal()
+
+```
+
+
+For bihar 
+
+```{r}
+bihar_crime <- df %>% 
+  filter(State == "Bihar") %>% 
+  select(Year, Total_crime)
+
+View(bihar_crime)
+
+ggplot(bihar_crime, aes(x = Year, y = Total_crime)) +
+  geom_line(color = "red", size = 1) +
+  geom_point(color = 'blue', size = 1) +
+  labs(title = "Crime Trend in Bihar (2001-2021)",
+       x = "Year",
+       y = "Total Crime") +
+  theme_minimal()
+```
+
+
+finally lets look the pie chart of crime in entire inida and listdonw what most and least crimes here
+
+```{r}
+
+install.packages('Treemap')
+library(treemap)
+library(dplyr)
+library(tidyr)
+
+
+crime_summary <- df %>% 
+  summarise(across(Rape:`Women Trafficking`, sum, na.rm = TRUE))
+
+crime_melted <- pivot_longer(crime_summary, cols = everything(), names_to = "Crime_Type", values_to = "Count")
+
+ggplot(crime_melted, aes(x = "", y = Count, fill = Crime_Type)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y") +
+  labs(title = "Crime Type Distribution in India") +
+  theme_void()
+```
+
